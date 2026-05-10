@@ -1,0 +1,16 @@
+{
+  "apps": [
+    {
+      "name": "Desktop",
+      "output": "",
+      "cmd": "",
+      "prep-cmd": [
+        {
+          "do": "/usr/bin/res-switch",
+          "undo": "/usr/bin/res-reset",
+          "elevated": false
+        }
+      ]
+    }
+  ]
+}

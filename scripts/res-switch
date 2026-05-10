@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -u
+
+LOG="/home/default/.cache/log/res-switch.log"
+mkdir -p "$(dirname "$LOG")"
+
+echo "" >> "$LOG"
+echo "---- $(date) ----" >> "$LOG"
+
+WIDTH="${SUNSHINE_CLIENT_WIDTH:-${1:-}}"
+HEIGHT="${SUNSHINE_CLIENT_HEIGHT:-${2:-}}"
+FPS="${SUNSHINE_CLIENT_FPS:-${3:-60}}"
+
+export DISPLAY="${DISPLAY:?DISPLAY not set}"
+
+if [ -z "$WIDTH" ] || [ -z "$HEIGHT" ]; then
+  echo "Missing client resolution." >> "$LOG"
+  exit 0
+fi
+
+case "$FPS" in
+  60|59|120)
+    ;;
+  *)
+    FPS=60
+    ;;
+esac
+
+TARGET="${WIDTH}x${HEIGHT}"
+
+echo "Requested resolution: ${TARGET}@${FPS}" >> "$LOG"
+
+XRANDR="$(xrandr -q 2>&1)"
+
+OUTPUT="$(echo "$XRANDR" | awk '/ primary/{print $1; exit}')"
+[ -z "$OUTPUT" ] && OUTPUT="$(echo "$XRANDR" | awk '/ connected/{print $1; exit}')"
+
+if [ -z "$OUTPUT" ]; then
+  echo "No connected output found." >> "$LOG"
+  exit 1
+fi
+
+echo "Using output: $OUTPUT" >> "$LOG"
+
+CURRENT="$(echo "$XRANDR" | awk '/\*/ {print $1; exit}')"
+echo "Current mode: ${CURRENT:-unknown}" >> "$LOG"
+
+if echo "$XRANDR" | sed -n "/^$OUTPUT /,/^[^ ]/p" | grep -q "^[[:space:]]*$TARGET[[:space:]]"; then
+  MODE="$TARGET"
+  echo "Using existing mode: $MODE" >> "$LOG"
+else
+  MODE="${TARGET}_${FPS}.00"
+
+  echo "Creating custom mode: $MODE" >> "$LOG"
+
+  MODELINE="$(cvt "$WIDTH" "$HEIGHT" "$FPS" | awk '/Modeline/ {$1=""; print substr($0,2)}')"
+  MODELABEL="$(echo "$MODELINE" | awk -F '"' '{print $2}')"
+  MODEARGS="$(echo "$MODELINE" | sed "s/\"$MODELABEL\"/\"$MODE\"/")"
+
+  # shellcheck disable=SC2086
+  xrandr --newmode $MODEARGS >> "$LOG" 2>&1 || true
+
+  sleep 0.2
+
+  for i in 1 2 3 4 5; do
+    if xrandr -q | grep -q "\"$MODE\""; then
+      break
+    fi
+    sleep 0.2
+  done
+
+  xrandr --addmode "$OUTPUT" "$MODE" >> "$LOG" 2>&1 || true
+fi
+
+echo "Applying output mode: $MODE" >> "$LOG"
+
+xrandr \
+  --output "$OUTPUT" \
+  --primary \
+  --mode "$MODE" \
+  --pos 0x0 \
+  --rotate normal >> "$LOG" 2>&1 || true
+
+sleep 0.2
+
+echo "Applying framebuffer: $TARGET" >> "$LOG"
+
+xrandr --fb "$TARGET" >> "$LOG" 2>&1 || true
+
+sleep 0.2
+
+echo "Done." >> "$LOG"

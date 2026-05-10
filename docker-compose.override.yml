@@ -1,0 +1,8 @@
+services:
+  steam-headless:
+    volumes:
+      - ./scripts/res-switch:/usr/bin/res-switch:ro
+      - ./scripts/moonlight-res-reset:/usr/bin/moonlight-res-reset:ro
+      - ./sunshine/apps.json:/home/default/.config/sunshine/apps.json:ro
+      - ./init.d/20-clean-xrandr.sh:/home/default/init.d/20-clean-xrandr.sh:ro
+      
