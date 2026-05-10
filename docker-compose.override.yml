@@ -1,7 +1,7 @@
 services:
   steam-headless:
     volumes:
-      - ./scripts/res-switch:/usr/bin/res-switch:ro
-      - ./scripts/res-reset:/usr/bin/res-reset:ro
-      - ./sunshine/apps.json:/home/default/.config/sunshine/apps.json:ro
+      - ./scripts/res-switch:/home/default/bin/res-switch:ro
+      - ./scripts/res-reset:/home/default/bin/res-reset:ro
+      - ./init.d/99-install-res-switch.sh:/home/default/init.d/99-install-res-switch.sh:ro
       

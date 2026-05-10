@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-LOG="/home/default/.cache/log/res-switch.log"
+LOG="/home/default/log/res-switch.log"
 mkdir -p "$(dirname "$LOG")"
 
 echo "" >> "$LOG"
