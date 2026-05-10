@@ -3,5 +3,5 @@ services:
     volumes:
       - ./scripts/res-switch:/home/default/bin/res-switch:ro
       - ./scripts/res-reset:/home/default/bin/res-reset:ro
-      - ./init.d/99-install-res-switch.sh:/home/default/init.d/99-install-res-switch.sh:ro
+      - ./install/99-install-res-switch.sh:/opt/res-switch/99-install-res-switch.sh:ro
       

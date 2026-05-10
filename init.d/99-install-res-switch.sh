@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 APPS_JSON="/home/default/.config/sunshine/apps.json"
+LOG="/home/default/.cache/log/res-switch-install.log"
 
-echo "[res-switch] Installing Sunshine resolution switch hook..."
-
-mkdir -p /home/default/bin
 mkdir -p /home/default/.cache/log
 
-chmod +x /home/default/bin/res-switch || true
-chmod +x /home/default/bin/res-reset || true
+{
+  echo ""
+  echo "---- $(date) ----"
+  echo "[res-switch] Installing Sunshine resolution switch hook..."
 
-if [ ! -f "$APPS_JSON" ]; then
-  echo "[res-switch] apps.json not found yet: $APPS_JSON"
-  exit 0
-fi
+  if [ ! -f "$APPS_JSON" ]; then
+    echo "[res-switch] ERROR: apps.json not found: $APPS_JSON"
+    exit 0
+  fi
 
-cp "$APPS_JSON" "${APPS_JSON}.res-switch.bak"
+  cp "$APPS_JSON" "${APPS_JSON}.res-switch.bak" || true
 
-python3 - <<'PY'
+  python3 - <<'PY'
 import json
 from pathlib import Path
 
@@ -33,14 +33,13 @@ hook = {
     "elevated": False,
 }
 
-apps = data.get("apps", [])
+patched = False
 
-for app in apps:
-    # On patche Desktop, sans remplacer le reste de sa config.
+for app in data.get("apps", []):
     if app.get("name") == "Desktop":
         prep = app.get("prep-cmd", [])
 
-        # Évite les doublons si le conteneur redémarre.
+        # Avoid duplicate hook on repeated installs.
         prep = [
             cmd for cmd in prep
             if "/home/default/bin/res-switch" not in cmd.get("do", "")
@@ -48,8 +47,10 @@ for app in apps:
 
         prep.insert(0, hook)
         app["prep-cmd"] = prep
+        patched = True
 
-data["apps"] = apps
+if not patched:
+    raise SystemExit("Desktop app not found in apps.json")
 
 with path.open("w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
@@ -57,4 +58,6 @@ with path.open("w", encoding="utf-8") as f:
 print("[res-switch] apps.json patched successfully")
 PY
 
-echo "[res-switch] Done."
+  echo "[res-switch] Done."
+
+} >> "$LOG" 2>&1
