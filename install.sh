@@ -14,12 +14,21 @@ chmod +x install/99-install-res-switch.sh
 echo "[res-switch] Starting container with override..."
 docker compose up -d --force-recreate
 
-echo "[res-switch] Waiting for container..."
-sleep 5
+echo "[res-switch] Waiting for supervisor..."
+
+for i in $(seq 1 60); do
+  if docker compose exec -T "$SERVICE" test -S /run/supervisor.sock; then
+    echo "[res-switch] Supervisor is ready."
+    break
+  fi
+
+  echo "[res-switch] Waiting for supervisor socket... attempt $i"
+  sleep 2
+done
 
 echo "[res-switch] Installing init.d hook into persistent home..."
 
-docker compose exec "$SERVICE" bash -lc '
+docker compose exec -T "$SERVICE" bash -lc '
 set -e
 
 mkdir -p /home/default/init.d
@@ -28,9 +37,22 @@ cp /opt/res-switch/99-install-res-switch.sh /home/default/init.d/99-install-res-
 chmod +x /home/default/init.d/99-install-res-switch.sh
 
 bash /home/default/init.d/99-install-res-switch.sh
-
-supervisorctl restart sunshine
 '
+
+echo "[res-switch] Waiting for Sunshine service..."
+
+for i in $(seq 1 60); do
+  if docker compose exec -T "$SERVICE" supervisorctl status sunshine >/dev/null 2>&1; then
+    echo "[res-switch] Sunshine is known by supervisor."
+    break
+  fi
+
+  echo "[res-switch] Waiting for sunshine supervisor program... attempt $i"
+  sleep 2
+done
+
+echo "[res-switch] Restarting Sunshine..."
+docker compose exec -T "$SERVICE" supervisorctl restart sunshine || true
 
 echo "[res-switch] Install complete."
 echo ""
